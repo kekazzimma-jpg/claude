@@ -1,0 +1,60 @@
+name: Build & Release EXE Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout codice
+        uses: actions/checkout@v4
+
+      - name: Installa Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Installa dipendenze
+        run: |
+          pip install --quiet pyinstaller asn1crypto tkinterdnd2
+
+      - name: Crea EXE con PyInstaller
+        run: |
+          pyinstaller `
+            --onefile `
+            --windowed `
+            --name "PDF_P7M_Extractor" `
+            --icon NONE `
+            pdf_p7m_extractor.py
+
+      - name: Verifica output
+        run: |
+          dir dist\
+          echo "EXE creato con successo"
+
+      - name: Crea Release e carica EXE
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "PDF P7M Extractor ${{ github.ref_name }}"
+          body: |
+            ## Download
+
+            Scarica il file **PDF_P7M_Extractor.exe** qui sotto.
+
+            ### Come usarlo
+            1. Scarica `PDF_P7M_Extractor.exe`
+            2. Doppio clic per aprire il programma
+            3. Trascina i file `.p7m` nella finestra, oppure usa il pulsante **"Apri P7M…"**
+
+            > Non richiede installazione, non richiede Python.
+          files: dist/PDF_P7M_Extractor.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
