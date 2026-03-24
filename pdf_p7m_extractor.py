@@ -373,7 +373,10 @@ class App:
         file_menu.add_command(label="Apri P7M…", accelerator="Ctrl+O", command=self._open_files)
         file_menu.add_command(label="Salva PDF selezionato…", command=self._save_pdf)
         file_menu.add_separator()
-        file_menu.add_command(label="Salva tutti i PDF estratti", command=self._save_all)
+        file_menu.add_command(
+            label="Salva tutto (bulk) — crea cartelle estratti/certificati",
+            command=self._save_all,
+        )
         file_menu.add_separator()
         file_menu.add_command(label="Pulisci lista", command=self._clear_list)
         file_menu.add_separator()
@@ -394,6 +397,7 @@ class App:
         toolbar.pack(fill=tk.X, padx=6, pady=4)
 
         ttk.Button(toolbar, text="Apri P7M…", command=self._open_files).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Salva tutto (bulk)", command=self._save_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Pulisci lista", command=self._clear_list).pack(side=tk.LEFT, padx=2)
 
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=2)
@@ -706,21 +710,126 @@ class App:
             messagebox.showinfo("Salvato", f"PDF salvato in:\n{out_path}")
 
     def _save_all(self):
-        done, errors = 0, []
-        for fp, result in self.results.items():
-            if not result or not result.get('ok'):
-                continue
-            out_path = self._get_default_output_path(fp)
+        """Salvataggio bulk: PDF in estratti/, dettagli certificati in estratti/certificati/."""
+        ok_files = {fp: r for fp, r in self.results.items() if r and r.get('ok')}
+        if not ok_files:
+            messagebox.showwarning("Nessun file", "Nessun PDF estratto con successo da salvare.")
+            return
+
+        # Determina cartella base
+        if self.output_dir:
+            base = Path(self.output_dir)
+        else:
+            folder = filedialog.askdirectory(
+                title="Scegli la cartella dove creare la cartella 'estratti'"
+            )
+            if not folder:
+                return
+            base = Path(folder)
+
+        estratti_dir = base / 'estratti'
+        certificati_dir = estratti_dir / 'certificati'
+
+        try:
+            estratti_dir.mkdir(parents=True, exist_ok=True)
+            certificati_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            messagebox.showerror("Errore cartella", f"Impossibile creare le cartelle:\n{exc}")
+            return
+
+        done_pdf, done_cert, errors = 0, 0, []
+
+        for fp, result in ok_files.items():
+            source = Path(fp)
+            stem = source.stem
+            if not stem.lower().endswith('.pdf'):
+                stem += '.pdf'
+            pdf_path = estratti_dir / stem
+
             try:
-                with open(out_path, 'wb') as fh:
+                with open(pdf_path, 'wb') as fh:
                     fh.write(result['data']['pdf_data'])
-                done += 1
+                done_pdf += 1
             except Exception as exc:
-                errors.append(f"{os.path.basename(fp)}: {exc}")
-        msg = f"{done} PDF salvati."
+                errors.append(f"PDF {source.name}: {exc}")
+                continue
+
+            cert_text = self._build_cert_text(fp, result['data'])
+            cert_path = certificati_dir / (source.name + '.txt')
+            try:
+                with open(cert_path, 'w', encoding='utf-8') as fh:
+                    fh.write(cert_text)
+                done_cert += 1
+            except Exception as exc:
+                errors.append(f"Certificato {source.name}: {exc}")
+
+        self._status_var.set(f"Bulk: {done_pdf} PDF e {done_cert} certificati salvati.")
+        msg = (
+            f"Operazione completata!\n\n"
+            f"  PDF salvati:        {done_pdf}\n"
+            f"  File certificati:   {done_cert}\n\n"
+            f"Cartella PDF:         {estratti_dir}\n"
+            f"Cartella certificati: {certificati_dir}"
+        )
         if errors:
-            msg += f"\n\nErrori:\n" + "\n".join(errors)
-        messagebox.showinfo("Salvataggio completato", msg)
+            msg += "\n\nErrori:\n" + "\n".join(errors)
+        messagebox.showinfo("Salvataggio bulk completato", msg)
+
+    def _build_cert_text(self, file_path: str, data: dict) -> str:
+        """Genera un report testuale con i dettagli dei certificati di un file P7M."""
+        lines = []
+        sep = "=" * 60
+        lines.append(sep)
+        lines.append("INFORMAZIONI FIRMA DIGITALE")
+        lines.append(sep)
+        lines.append(f"File sorgente:  {os.path.basename(file_path)}")
+        lines.append(f"Percorso:       {file_path}")
+        pdf_size = len(data['pdf_data'])
+        lines.append(f"Dimensione PDF: {pdf_size:,} byte ({pdf_size / 1024:.1f} KB)")
+        sigs = data['signatures']
+        all_certs = data['all_certificates']
+        lines.append(f"Numero firme:   {len(sigs)}")
+        lines.append("")
+
+        lines.append(f"FIRME DIGITALI ({len(sigs)})")
+        lines.append("-" * 60)
+        for i, sig in enumerate(sigs, 1):
+            lines.append(f"\nFirma #{i}:")
+            cert = sig.get('certificate')
+            if cert:
+                cn = _extract_cn(cert['subject'])
+                lines.append(f"  Firmatario:        {cn}")
+                lines.append(f"  Soggetto (DN):     {cert['subject']}")
+                lines.append(f"  Emittente (CA):    {cert['issuer']}")
+                lines.append(f"  Numero seriale:    {cert['serial']}")
+                nb = cert['not_before']
+                na = cert['not_after']
+                lines.append(f"  Cert. valido dal:  {_fmt_date(nb)}")
+                expired_tag = "  [SCADUTO]" if _is_expired(na) else "  [valido]"
+                lines.append(f"  Cert. valido fino: {_fmt_date(na)}{expired_tag}")
+            else:
+                lines.append("  Certificato: non trovato nella busta")
+            st = sig.get('signing_time')
+            lines.append(f"  Data firma:        {_fmt_date(st) if st else 'non presente'}")
+            lines.append(f"  Algoritmo digest:  {sig.get('digest_algorithm', 'N/D')}")
+            lines.append(f"  Algoritmo firma:   {sig.get('signature_algorithm', 'N/D')}")
+
+        if len(all_certs) > len(sigs):
+            lines.append("")
+            lines.append(f"CATENA CERTIFICATI ({len(all_certs)} certificati)")
+            lines.append("-" * 60)
+            for i, cert in enumerate(all_certs, 1):
+                cn = _extract_cn(cert['subject'])
+                issuer_cn = _extract_cn(cert['issuer'])
+                lines.append(f"  [{i}] {cn}")
+                lines.append(f"      Emittente: {issuer_cn}")
+                lines.append(f"      Validita:  {_fmt_date(cert['not_before'])} -> {_fmt_date(cert['not_after'])}")
+
+        lines.append("")
+        lines.append(sep)
+        lines.append(f"Report generato il: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
+        lines.append(sep)
+        return "\n".join(lines)
 
     def _open_pdf(self):
         sel = self._tree.selection()
