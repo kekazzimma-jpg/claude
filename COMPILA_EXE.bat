@@ -29,7 +29,7 @@ if errorlevel 1 (
 )
 
 echo [2/3] Installo le dipendenze del programma...
-pip install --quiet asn1crypto
+pip install --quiet asn1crypto Pillow
 if errorlevel 1 (
     echo ERRORE: impossibile installare le dipendenze.
     pause
@@ -43,7 +43,7 @@ pyinstaller ^
     --onefile ^
     --windowed ^
     --name "PDF_P7M_Extractor" ^
-    --add-data "pdf_p7m_extractor.py;." ^
+    --add-data "assets;assets" ^
     pdf_p7m_extractor.py
 
 if errorlevel 1 (
