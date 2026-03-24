@@ -24,6 +24,9 @@ from tkinter import ttk, filedialog, messagebox
 from pathlib import Path
 from datetime import datetime
 
+# Cartella degli asset (relativa allo script)
+_ASSETS_DIR = Path(__file__).parent / 'assets'
+
 # ---------------------------------------------------------------------------
 # Dependency check / auto-install
 # ---------------------------------------------------------------------------
@@ -78,6 +81,28 @@ try:
     _HAS_DND = True
 except ImportError:
     _HAS_DND = False
+
+try:
+    from PIL import Image, ImageTk
+    _HAS_PIL = True
+except ImportError:
+    _HAS_PIL = False
+
+
+def _load_logo(size: tuple[int, int] | None = None):
+    """Carica il logo SGC come PhotoImage. Ritorna None se non disponibile."""
+    if not _HAS_PIL:
+        return None
+    logo_path = _ASSETS_DIR / 'logo_sgc.png'
+    if not logo_path.exists():
+        return None
+    try:
+        img = Image.open(logo_path).convert('RGBA')
+        if size:
+            img = img.resize(size, Image.LANCZOS)
+        return ImageTk.PhotoImage(img)
+    except Exception:
+        return None
 
 # ---------------------------------------------------------------------------
 # P7M Parser
@@ -342,11 +367,13 @@ class App:
         self.root.geometry("980x680")
         self.root.minsize(720, 520)
 
-        try:
-            # Set a nice window icon using a built-in bitmap
-            self.root.iconbitmap(default='')
-        except Exception:
-            pass
+        # Icona della finestra
+        self._logo_icon = _load_logo(size=(64, 81))
+        if self._logo_icon:
+            try:
+                self.root.iconphoto(True, self._logo_icon)
+            except Exception:
+                pass
 
         self.results: dict = {}   # file_path -> {'ok': bool, 'data': ..., 'error': ...}
         self.output_dir: str | None = None
@@ -861,17 +888,42 @@ class App:
         self._status_var.set("Lista pulita.")
 
     def _show_about(self):
-        messagebox.showinfo(
-            "Informazioni",
-            "PDF P7M Signature Extractor v1.0\n\n"
+        win = tk.Toplevel(self.root)
+        win.title("Informazioni")
+        win.resizable(False, False)
+        win.grab_set()
+
+        logo = _load_logo(size=(82, 104))
+        if logo:
+            lbl_logo = tk.Label(win, image=logo, bg='white')
+            lbl_logo.image = logo  # keep reference
+            lbl_logo.pack(pady=(16, 8))
+
+        tk.Label(
+            win,
+            text="PDF P7M Signature Extractor v1.0",
+            font=('TkDefaultFont', 13, 'bold'),
+        ).pack()
+        tk.Label(
+            win,
+            text="Comune di San Giorgio a Cremano",
+            font=('TkDefaultFont', 10, 'italic'),
+            foreground='#1565c0',
+        ).pack(pady=(2, 10))
+
+        info = (
             "Estrae il PDF da file firmati digitalmente in formato P7M\n"
             "e mostra le informazioni sulla firma digitale.\n\n"
             "Formati supportati: P7M (PKCS#7 / CMS SignedData)\n"
             "Codifiche: DER e PEM\n\n"
             "Librerie: asn1crypto, tkinter"
             + ("\n             tkinterdnd2 (drag & drop attivo)" if _HAS_DND
-               else "\n(installa tkinterdnd2 per il drag & drop)"),
+               else "\n(installa tkinterdnd2 per il drag & drop)")
         )
+        tk.Label(win, text=info, justify=tk.CENTER, font=('TkDefaultFont', 10)).pack(padx=20)
+
+        ttk.Button(win, text="Chiudi", command=win.destroy).pack(pady=14)
+        win.wait_window()
 
 
 # ---------------------------------------------------------------------------
