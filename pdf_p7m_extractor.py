@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PDF P7M Signature Extractor v1.0
----------------------------------
+P7M Extract v1.0
+----------------
 Strumento portabile per estrarre il PDF da file P7M firmati digitalmente
 e visualizzare le informazioni sulla firma digitale.
 
@@ -363,7 +363,7 @@ COLOR_BG_TEXT = '#fafafa'
 class App:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("PDF P7M Signature Extractor")
+        self.root.title("P7M Extract")
         self.root.geometry("980x680")
         self.root.minsize(720, 520)
 
@@ -901,7 +901,7 @@ class App:
 
         tk.Label(
             win,
-            text="PDF P7M Signature Extractor v1.0",
+            text="P7M Extract v1.0",
             font=('TkDefaultFont', 13, 'bold'),
         ).pack()
         tk.Label(
@@ -909,7 +909,13 @@ class App:
             text="Comune di San Giorgio a Cremano",
             font=('TkDefaultFont', 10, 'italic'),
             foreground='#1565c0',
-        ).pack(pady=(2, 10))
+        ).pack(pady=(2, 4))
+        tk.Label(
+            win,
+            text="Sviluppato per il IV Settore",
+            font=('TkDefaultFont', 9),
+            foreground='#555555',
+        ).pack(pady=(0, 10))
 
         info = (
             "Estrae il PDF da file firmati digitalmente in formato P7M\n"

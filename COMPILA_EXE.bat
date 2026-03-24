@@ -7,7 +7,7 @@
 
 echo.
 echo ============================================================
-echo   Compilazione PDF P7M Extractor - creazione file .exe
+echo   Compilazione P7M Extract - creazione file .exe
 echo ============================================================
 echo.
 
@@ -42,7 +42,7 @@ echo.
 pyinstaller ^
     --onefile ^
     --windowed ^
-    --name "PDF_P7M_Extractor" ^
+    --name "P7M_Extract" ^
     --add-data "assets;assets" ^
     pdf_p7m_extractor.py
 
@@ -59,7 +59,7 @@ echo   COMPLETATO!
 echo ============================================================
 echo.
 echo   Il file .exe si trova in:
-echo   %~dp0dist\PDF_P7M_Extractor.exe
+echo   %~dp0dist\P7M_Extract.exe
 echo.
 echo   Puoi copiare quel file dove vuoi e distribuirlo.
 echo   Non richiede Python installato per funzionare.
