@@ -330,6 +330,14 @@ def _is_expired(dt) -> bool:
         return False
 
 
+def _sig_ok(sig: dict) -> bool:
+    """Restituisce True se la firma ha certificato trovato e non scaduto."""
+    cert = sig.get('certificate')
+    if not cert:
+        return False
+    return not _is_expired(cert.get('not_after'))
+
+
 def _open_file(path: str):
     """Open a file with the system default application."""
     try:
@@ -775,8 +783,8 @@ class App:
                 errors.append(f"PDF {source.name}: {exc}")
                 continue
 
-            cert_text = self._build_cert_text(fp, result['data'])
-            cert_path = certificati_dir / (source.name + '.txt')
+            cert_text, esito, data_firma = self._build_cert_text(fp, result['data'])
+            cert_path = certificati_dir / f"{source.name} - {esito} al {data_firma}.txt"
             try:
                 with open(cert_path, 'w', encoding='utf-8') as fh:
                     fh.write(cert_text)
@@ -796,8 +804,31 @@ class App:
             msg += "\n\nErrori:\n" + "\n".join(errors)
         messagebox.showinfo("Salvataggio bulk completato", msg)
 
-    def _build_cert_text(self, file_path: str, data: dict) -> str:
-        """Genera un report testuale con i dettagli dei certificati di un file P7M."""
+    def _build_cert_text(self, file_path: str, data: dict) -> tuple[str, str, str]:
+        """
+        Genera un report testuale con i dettagli dei certificati di un file P7M.
+        Restituisce (testo, esito, data_firma) dove:
+          esito      = 'OK' o 'KO'
+          data_firma = stringa 'dd.mm.yyyy' della data della prima firma, o 'ND'
+        """
+        sigs = data['signatures']
+        all_certs = data['all_certificates']
+
+        # Esito complessivo: OK solo se TUTTE le firme sono valide
+        overall_ok = bool(sigs) and all(_sig_ok(s) for s in sigs)
+        esito = "OK" if overall_ok else "KO"
+
+        # Data della prima firma disponibile
+        data_firma = "ND"
+        for sig in sigs:
+            st = sig.get('signing_time')
+            if st:
+                try:
+                    data_firma = st.strftime('%d.%m.%Y')
+                except Exception:
+                    pass
+                break
+
         lines = []
         sep = "=" * 60
         lines.append(sep)
@@ -807,15 +838,21 @@ class App:
         lines.append(f"Percorso:       {file_path}")
         pdf_size = len(data['pdf_data'])
         lines.append(f"Dimensione PDF: {pdf_size:,} byte ({pdf_size / 1024:.1f} KB)")
-        sigs = data['signatures']
-        all_certs = data['all_certificates']
         lines.append(f"Numero firme:   {len(sigs)}")
+        lines.append("")
+
+        # Riepilogo esito ben visibile
+        if overall_ok:
+            lines.append(">>> FIRMA VALIDA (OK) <<<")
+        else:
+            lines.append(">>> FIRMA NON VALIDA O SCADUTA (KO) <<<")
         lines.append("")
 
         lines.append(f"FIRME DIGITALI ({len(sigs)})")
         lines.append("-" * 60)
         for i, sig in enumerate(sigs, 1):
-            lines.append(f"\nFirma #{i}:")
+            ok_flag = "OK" if _sig_ok(sig) else "KO"
+            lines.append(f"\nFirma #{i}  [{ok_flag}]:")
             cert = sig.get('certificate')
             if cert:
                 cn = _extract_cn(cert['subject'])
@@ -829,7 +866,7 @@ class App:
                 expired_tag = "  [SCADUTO]" if _is_expired(na) else "  [valido]"
                 lines.append(f"  Cert. valido fino: {_fmt_date(na)}{expired_tag}")
             else:
-                lines.append("  Certificato: non trovato nella busta")
+                lines.append("  Certificato:       non trovato nella busta  [KO]")
             st = sig.get('signing_time')
             lines.append(f"  Data firma:        {_fmt_date(st) if st else 'non presente'}")
             lines.append(f"  Algoritmo digest:  {sig.get('digest_algorithm', 'N/D')}")
@@ -850,7 +887,7 @@ class App:
         lines.append(sep)
         lines.append(f"Report generato il: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}")
         lines.append(sep)
-        return "\n".join(lines)
+        return "\n".join(lines), esito, data_firma
 
     def _open_pdf(self):
         sel = self._tree.selection()
