@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-P7M Extract v1.0
-----------------
+Estrai P7M v1.0
+---------------
 Strumento portabile per estrarre il PDF da file P7M firmati digitalmente
 e visualizzare le informazioni sulla firma digitale.
 
@@ -9,7 +9,7 @@ Utilizzo:
   python pdf_p7m_extractor.py [file1.p7m file2.p7m ...]
   Oppure apri i file trascinandoli sulla finestra (drag & drop).
 
-Dipendenze: asn1crypto, tkinterdnd2 (opzionale per drag & drop)
+Dipendenze: asn1crypto, tkinterdnd2, Pillow
 """
 
 import os
@@ -33,7 +33,7 @@ _ASSETS_DIR = Path(__file__).parent / 'assets'
 
 def _check_deps():
     missing = []
-    for mod in ('asn1crypto',):
+    for mod in ('asn1crypto', 'tkinterdnd2'):
         try:
             __import__(mod)
         except ImportError:
@@ -363,7 +363,7 @@ COLOR_BG_TEXT = '#fafafa'
 class App:
     def __init__(self, root: tk.Tk):
         self.root = root
-        self.root.title("P7M Extract")
+        self.root.title("Estrai P7M")
         self.root.geometry("980x680")
         self.root.minsize(720, 520)
 
@@ -532,8 +532,7 @@ class App:
                     pass
         else:
             self._drop_label.config(
-                text="Apri file P7M con il pulsante «Apri P7M»"
-                     "  (installa tkinterdnd2 per il drag & drop)",
+                text="Apri file P7M con il pulsante «Apri P7M»",
                 fg='gray',
                 bg='#f5f5f5',
             )
@@ -901,7 +900,7 @@ class App:
 
         tk.Label(
             win,
-            text="P7M Extract v1.0",
+            text="Estrai P7M v1.0",
             font=('TkDefaultFont', 13, 'bold'),
         ).pack()
         tk.Label(
@@ -922,9 +921,7 @@ class App:
             "e mostra le informazioni sulla firma digitale.\n\n"
             "Formati supportati: P7M (PKCS#7 / CMS SignedData)\n"
             "Codifiche: DER e PEM\n\n"
-            "Librerie: asn1crypto, tkinter"
-            + ("\n             tkinterdnd2 (drag & drop attivo)" if _HAS_DND
-               else "\n(installa tkinterdnd2 per il drag & drop)")
+            "Librerie: asn1crypto, tkinterdnd2, Pillow, tkinter"
         )
         tk.Label(win, text=info, justify=tk.CENTER, font=('TkDefaultFont', 10)).pack(padx=20)
 

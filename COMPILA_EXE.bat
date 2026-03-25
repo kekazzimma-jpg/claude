@@ -7,7 +7,7 @@
 
 echo.
 echo ============================================================
-echo   Compilazione P7M Extract - creazione file .exe
+echo   Compilazione Estrai P7M - creazione file .exe
 echo ============================================================
 echo.
 
@@ -29,7 +29,7 @@ if errorlevel 1 (
 )
 
 echo [2/3] Installo le dipendenze del programma...
-python -m pip install --quiet asn1crypto Pillow
+python -m pip install --quiet asn1crypto tkinterdnd2 Pillow
 if errorlevel 1 (
     echo ERRORE: impossibile installare le dipendenze.
     pause
@@ -46,7 +46,7 @@ if exist "assets\" set ASSETS_FLAG=--add-data "assets;assets"
 python -m PyInstaller ^
     --onefile ^
     --windowed ^
-    --name "P7M_Extract" ^
+    --name "Estrai_P7M" ^
     %ASSETS_FLAG% ^
     pdf_p7m_extractor.py
 
@@ -63,7 +63,7 @@ echo   COMPLETATO!
 echo ============================================================
 echo.
 echo   Il file .exe si trova in:
-echo   %~dp0dist\P7M_Extract.exe
+echo   %~dp0dist\Estrai_P7M.exe
 echo.
 echo   Puoi copiare quel file dove vuoi e distribuirlo.
 echo   Non richiede Python installato per funzionare.
