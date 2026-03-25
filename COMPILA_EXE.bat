@@ -39,11 +39,15 @@ if errorlevel 1 (
 echo [3/3] Compilo in un unico file .exe (ci vogliono 1-3 minuti)...
 echo.
 
+:: Includi assets/ solo se la cartella esiste (contiene il logo SGC)
+set ASSETS_FLAG=
+if exist "assets\" set ASSETS_FLAG=--add-data "assets;assets"
+
 python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "P7M_Extract" ^
-    --add-data "assets;assets" ^
+    %ASSETS_FLAG% ^
     pdf_p7m_extractor.py
 
 if errorlevel 1 (
