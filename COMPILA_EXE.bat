@@ -21,7 +21,7 @@ if errorlevel 1 (
 )
 
 echo [1/3] Python trovato. Installo/aggiorno PyInstaller...
-pip install --quiet --upgrade pyinstaller
+python -m pip install --quiet --upgrade pyinstaller
 if errorlevel 1 (
     echo ERRORE: impossibile installare PyInstaller.
     pause
@@ -29,7 +29,7 @@ if errorlevel 1 (
 )
 
 echo [2/3] Installo le dipendenze del programma...
-pip install --quiet asn1crypto Pillow
+python -m pip install --quiet asn1crypto Pillow
 if errorlevel 1 (
     echo ERRORE: impossibile installare le dipendenze.
     pause
@@ -39,7 +39,7 @@ if errorlevel 1 (
 echo [3/3] Compilo in un unico file .exe (ci vogliono 1-3 minuti)...
 echo.
 
-pyinstaller ^
+python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name "P7M_Extract" ^
