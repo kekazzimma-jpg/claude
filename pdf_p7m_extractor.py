@@ -401,7 +401,7 @@ class App:
         file_menu.add_command(label="Salva PDF selezionato…", command=self._save_pdf)
         file_menu.add_separator()
         file_menu.add_command(
-            label="Salva tutto (bulk) — crea cartelle estratti/certificati",
+            label="Estrai tutto — crea cartelle estratti/certificati",
             command=self._save_all,
         )
         file_menu.add_separator()
@@ -424,7 +424,7 @@ class App:
         toolbar.pack(fill=tk.X, padx=6, pady=4)
 
         ttk.Button(toolbar, text="Apri P7M…", command=self._open_files).pack(side=tk.LEFT, padx=2)
-        ttk.Button(toolbar, text="Salva tutto (bulk)", command=self._save_all).pack(side=tk.LEFT, padx=2)
+        ttk.Button(toolbar, text="Estrai tutto", command=self._save_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="Pulisci lista", command=self._clear_list).pack(side=tk.LEFT, padx=2)
 
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=2)
@@ -742,16 +742,11 @@ class App:
             messagebox.showwarning("Nessun file", "Nessun PDF estratto con successo da salvare.")
             return
 
-        # Determina cartella base
+        # Determina cartella base: output_dir se impostato, altrimenti cartella del primo file
         if self.output_dir:
             base = Path(self.output_dir)
         else:
-            folder = filedialog.askdirectory(
-                title="Scegli la cartella dove creare la cartella 'estratti'"
-            )
-            if not folder:
-                return
-            base = Path(folder)
+            base = Path(next(iter(ok_files))).parent
 
         estratti_dir = base / 'estratti'
         certificati_dir = estratti_dir / 'certificati'
